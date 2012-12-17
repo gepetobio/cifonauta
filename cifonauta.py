@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# CIFONAUTA
-# Copyleft 2010-2011 - Bruno C. Vellutini | organelas.com
+# Copyleft 2010-2013 - Bruno C. Vellutini | organelas.com
 #
-#TODO Definir licença.
 #
-'''Gerenciador do banco de imagens do CEBIMar-USP.
+'''Manager of Cifonauta's image database.
 
-Este programa gerencia os arquivos do banco de imagens do CEBIMar lendo seus
-metadados, reconhecendo marquivos modificados e atualizando o website.
+This robot manages the archives of the marine biology image database
+Cifonauta. It reads image files and embedded metadata, recognizes modified
+files, and update entries in the website.
 
-Centro de Biologia Marinha da Universidade de São Paulo.
+Center of Marine Biology from University of São Paulo (CEBIMar/USP).
+http://cifonauta.cebimar.usp.br/
+
 '''
 
 import getopt
@@ -30,14 +31,14 @@ import linking
 from itis import Itis
 from media_utils import *
 
-# Django environment import
+# Django environment import.
 from django.core.management import setup_environ
 import settings
 setup_environ(settings)
 from meta.models import *
 
 __author__ = 'Bruno Vellutini'
-__copyright__ = 'Copyright 2010-2011, CEBIMar-USP'
+__copyright__ = 'Copyright 2010-2013, CEBIMar-USP'
 __credits__ = 'Bruno C. Vellutini'
 __license__ = 'DEFINIR'
 __version__ = '0.9.0'
@@ -47,16 +48,16 @@ __status__ = 'Development'
 
 
 class Database:
-    '''Define objeto que interage com o banco de dados.'''
+    '''Define object that interacts with database.'''
     def __init__(self):
         pass
 
     def search_db(self, media):
-        '''Busca o registro no banco de dados pelo nome do arquivo.
+        '''Search database registry for the file name.
 
-        Se encontrar, compara a data de modificação do arquivo e do registro.
-        Se as datas forem iguais pula para próximo arquivo, se forem diferentes
-        atualiza o registro.
+        If found, compares modification date from file and entry. If equal,
+        skips to the next file, if different, updates the entry.
+
         '''
         print
         logger.info('Verificando se %s (%s) está no banco de dados...',
@@ -66,7 +67,7 @@ class Database:
 
         try:
             if media.type == "photo":
-                # Busca pelo nome exato do arquivo, para evitar confusão.
+                # Search for an exact match, to avoid trouble.
                 record = Image.objects.get(web_filepath=photopath + media.filename)
             elif media.type == "video":
                 try:
@@ -94,46 +95,46 @@ class Database:
             return False
 
     def update_db(self, media, update=False):
-        '''Cria ou atualiza registro no banco de dados.'''
+        '''Create or update database entries.'''
         logger.info('Atualizando o banco de dados...')
-        # Instancia metadados pra não dar conflito.
+        # Instantiate metadata to avoid conflicts.
         media_meta = media.meta
-        # Guarda objeto com infos taxonômicas.
+        # Store object with taxonomic information.
         taxa = media_meta['taxon']
         del media_meta['taxon']
-        # Prevenção contra extinto campo de espécie.
+        # Prevention against deprecated "species" field.
         try:
             del media_meta['genus_sp']
         except:
             pass
-        # Guarda objeto com autores
+        # Store object with authors.
         authors = media_meta['author']
-        # Guarda objeto com especialistas 
+        # Store objects with specialists.
         sources = media_meta['source']
         del media_meta['source']
-        # Guarda objeto com tags
+        # Store object with tags.
         tags = media_meta['tags']
         del media_meta['tags']
-        # Guarda objeto com referências
+        # Store objects with references.
         refs = media_meta['references']
         del media_meta['references']
 
-        # Não deixar entrada pública se faltar título ou autor
+        # Media without title or author don't become public.
         if media_meta['title'] == '' or not media_meta['author']:
-            logger.debug('Mídia %s sem título ou autor!', 
+            logger.debug('Mídia %s sem título ou autor!',
                     media_meta['source_filepath'])
             media_meta['is_public'] = False
         else:
             media_meta['is_public'] = True
-        # Deleta para inserir autores separadamente.
+        # Delete to insert authors separatedly.
         del media_meta['author']
 
-        # Transforma valores em instâncias dos modelos
+        # Convert values to model instances.
         toget = ['size', 'rights', 'sublocation',
                 'city', 'state', 'country']
         for k in toget:
             logger.debug('META (%s): %s', k, media_meta[k])
-            # Apenas criar se não estiver em branco.
+            # Only create if not blank.
             if media_meta[k]:
                 media_meta[k] = self.get_instance(k, media_meta[k])
                 logger.debug('INSTANCES FOUND: %s', media_meta[k])
@@ -145,7 +146,7 @@ class Database:
                 entry = Image(**media_meta)
             elif media.type == 'video':
                 entry = Video(**media_meta)
-            # Tem que salvar para criar id, usado na hora de salvar as tags
+            # Needs to be saved to generate ID, used to save tags.
             entry.save()
         else:
             if media.type == 'photo':
@@ -155,33 +156,33 @@ class Database:
             for k, v in media_meta.iteritems():
                 setattr(entry, k, v)
 
-        # Atualiza autores
+        # Update authors
         entry = self.update_sets(entry, 'author', authors)
 
-        # Atualiza especialistas
+        # Update specialists
         entry = self.update_sets(entry, 'source', sources)
 
-        # Atualiza táxons
+        # Update taxa
         entry = self.update_sets(entry, 'taxon', taxa)
 
-        # Atualiza marcadores
+        # Update tags
         entry = self.update_sets(entry, 'tag', tags)
 
-        # Atualiza referências
+        # Update references
         entry = self.update_sets(entry, 'reference', refs)
 
-        # Salvando modificações
+        # Save changes.
         entry.save()
 
         logger.info('Registro no banco de dados atualizado!')
 
     def get_instance(self, table, value):
-        '''Retorna o id a partir do nome.'''
+        '''Returns ID from name.'''
         model, new = eval('%s.objects.get_or_create(name="%s")' % (table.capitalize(), value))
         if table == 'taxon' and new:
-            # Consulta ITIS para extrair táxons.
+            # Use ITIS to extract taxa.
             taxon = self.get_itis(value)
-            # Reforça, caso a conexão falhe.
+            # Try again in case of connection failure.
             if not taxon:
                 taxon = self.get_itis(value)
                 if not taxon:
@@ -189,17 +190,17 @@ class Database:
                     time.sleep(5)
                     taxon = self.get_itis(value)
             try:
-                # Por fim, atualizar o modelo.
+                # Finally, update model.
                 model = taxon.update_model(model)
             except:
                 logger.warning('Não rolou pegar hierarquia...')
         return model
 
     def update_sets(self, entry, field, meta):
-        '''Atualiza campos many to many do banco de dados.
+        '''Updates many-to-many fields in the database.
 
-        Verifica se o value não está em branco, para não adicionar entradas em
-        branco no banco.
+        Verify if values are not blank to avoid adding blank values to database.
+
         '''
         logger.debug('META (%s): %s', field, meta)
         meta_instances = [self.get_instance(field, value) for value in meta if value.strip()]
@@ -209,9 +210,9 @@ class Database:
         return entry
 
     def get_itis(self, name):
-        '''Consulta banco de dados do ITIS.
+        '''Check ITIS database.
 
-        Extrai o táxon pai e o ranking. Valores são guardados em:
+        Extract parent taxon and ranking. Values are stored as:
 
         taxon.name
         taxon.rank
@@ -259,8 +260,7 @@ class Movie:
 
     def create_meta(self, new=False):
         '''Define as variáveis dos metadados do vídeo.'''
-        logger.info('Lendo os metadados de %s e criando variáveis.' % 
-                self.filename)
+        logger.info('Lendo os metadados de %s e criando variáveis.' % self.filename)
         # Limpa metadados pra não misturar com o anterior.
         self.meta = {}
         self.meta = {
@@ -295,7 +295,7 @@ class Movie:
             meta_text = open(txt_path, 'rb')
             logger.debug('Arquivo acessório %s existe!', txt_path)
         except:
-            logger.debug('Arquivo acessório de %s não existe!', 
+            logger.debug('Arquivo acessório de %s não existe!',
                     self.source_filepath)
             meta_text = ''
 
@@ -363,8 +363,8 @@ class Movie:
                 '-threads', '0', '-pass', str(ipass),
                 ]
         #TODO Achar um jeito mais confiável de saber se é HD...
-        # Comando cria objeto da marca d'água e redimensiona para 100px de 
-        # largura, redimensiona o vídeo para o tamanho certo de acordo com seu 
+        # Comando cria objeto da marca d'água e redimensiona para 100px de
+        # largura, redimensiona o vídeo para o tamanho certo de acordo com seu
         # tipo e insere a marca no canto esquerdo embaixo.
         if self.source_filepath.endswith('m2ts'):
             call.extend([
@@ -411,30 +411,30 @@ class Movie:
         '''Redimensiona o vídeo, inclui marca d'água e comprime.'''
         # Exemplo DV (4:3):
         #   Pass 1:
-        #       ffmpeg -y -i video_in.avi -vf "movie=marca.png:f=png, 
-        #       scale=100:-1 [wm];[in] scale=512:384, [wm] overlay=5:H-h-5:1" 
-        #       -aspect 4:3 -pass 1 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre 
-        #       veryslow_firstpass -acodec libvorbis -ab 128k -ac 2 -ar 44100 
+        #       ffmpeg -y -i video_in.avi -vf "movie=marca.png:f=png,
+        #       scale=100:-1 [wm];[in] scale=512:384, [wm] overlay=5:H-h-5:1"
+        #       -aspect 4:3 -pass 1 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre
+        #       veryslow_firstpass -acodec libvorbis -ab 128k -ac 2 -ar 44100
         #       -threads 2 video_out.webm
         #   Pass 2:
-        #       ffmpeg -y -i video_in.avi -vf "movie=marca.png:f=png, 
-        #       scale=100:-1 [wm];[in] scale=512:384, [wm] overlay=5:H-h-5:1" 
-        #       -aspect 16:9 -pass 2 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre 
-        #       veryslow -acodec libvorbis -ab 128k -ac 2 -ar 44100 -threads 2 
+        #       ffmpeg -y -i video_in.avi -vf "movie=marca.png:f=png,
+        #       scale=100:-1 [wm];[in] scale=512:384, [wm] overlay=5:H-h-5:1"
+        #       -aspect 16:9 -pass 2 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre
+        #       veryslow -acodec libvorbis -ab 128k -ac 2 -ar 44100 -threads 2
         #       video_out.webm
         #
         # Exemplo HD (16:9):
         #   Pass 1:
-        #       ffmpeg -y -i video_in.m2ts -vf "movie=marca.png:f=png, 
-        #       scale=100:-1 [wm];[in] scale=512:288, [wm] overlay=5:H-h-5:1" 
-        #       -aspect 16:9 -pass 1 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre 
-        #       veryslow_firstpass -acodec libvorbis -ab 128k -ac 2 -ar 44100 
+        #       ffmpeg -y -i video_in.m2ts -vf "movie=marca.png:f=png,
+        #       scale=100:-1 [wm];[in] scale=512:288, [wm] overlay=5:H-h-5:1"
+        #       -aspect 16:9 -pass 1 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre
+        #       veryslow_firstpass -acodec libvorbis -ab 128k -ac 2 -ar 44100
         #       -threads 2 video_out.webm
         #   Pass 2:
-        #       ffmpeg -y -i video_in.m2ts -vf "movie=marca.png:f=png, 
-        #       scale=100:-1 [wm];[in] scale=512:288, [wm] overlay=5:H-h-5:1" 
-        #       -aspect 16:9 -pass 2 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre 
-        #       veryslow -acodec libvorbis -ab 128k -ac 2 -ar 44100 -threads 2 
+        #       ffmpeg -y -i video_in.m2ts -vf "movie=marca.png:f=png,
+        #       scale=100:-1 [wm];[in] scale=512:288, [wm] overlay=5:H-h-5:1"
+        #       -aspect 16:9 -pass 2 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre
+        #       veryslow -acodec libvorbis -ab 128k -ac 2 -ar 44100 -threads 2
         #       video_out.webm
         #FIXME O que fazer quando vídeos forem menores que isso?
         logger.info('Processando o vídeo %s', self.source_filepath)
@@ -465,11 +465,11 @@ class Movie:
                     webm_site_filepath = os.path.join(self.site_dir, webm_name)
                     copy(webm_filepath, webm_site_filepath)
                 except:
-                    logger.warning('Erro ao copiar %s para o site.', 
+                    logger.warning('Erro ao copiar %s para o site.',
                             webm_filepath)
                 web_paths['webm_filepath'] = webm_site_filepath
             except:
-                logger.warning('Processamento do WebM (%s) não funcionou!', 
+                logger.warning('Processamento do WebM (%s) não funcionou!',
                         webm_filepath)
             try:
                 # MP4
@@ -483,14 +483,14 @@ class Movie:
                         subprocess.call(['qt-faststart', mp4_site_filepath,
                             mp4_site_filepath])
                     except:
-                        logger.debug('qt-faststart não funcionou para %s', 
+                        logger.debug('qt-faststart não funcionou para %s',
                                 mp4_filepath)
                 except:
-                    logger.warning('Erro ao copiar %s para o site.', 
+                    logger.warning('Erro ao copiar %s para o site.',
                             mp4_filepath)
                 web_paths['mp4_filepath'] = mp4_site_filepath
             except:
-                logger.warning('Processamento do x264 (%s) não funcionou!', 
+                logger.warning('Processamento do x264 (%s) não funcionou!',
                         mp4_filepath)
             try:
                 # OGG
@@ -501,11 +501,11 @@ class Movie:
                     ogg_site_filepath = os.path.join(self.site_dir, ogg_name)
                     copy(ogg_filepath, ogg_site_filepath)
                 except:
-                    logger.warning('Erro ao copiar %s para o site.', 
+                    logger.warning('Erro ao copiar %s para o site.',
                             ogg_filepath)
                 web_paths['ogg_filepath'] = ogg_site_filepath
             except:
-                logger.warning('Processamento do OGG (%s) não funcionou!', 
+                logger.warning('Processamento do OGG (%s) não funcionou!',
                         ogg_filepath)
         except IOError:
             logger.warning('Erro na conversão de %s.')
@@ -522,7 +522,7 @@ class Movie:
                 copy(still_localpath, self.site_thumb_dir)
                 logger.debug('Still copiado para %s', self.site_thumb_dir)
             except IOError:
-                logger.warning('Não conseguiu copiar thumb ou still em %s', 
+                logger.warning('Não conseguiu copiar thumb ou still em %s',
                         self.site_thumb_dir)
 
             # Define caminho para o thumb e still do site.
@@ -582,19 +582,19 @@ class Photo:
         self.meta = {}
         self.meta = {
                 'source_filepath': os.path.abspath(self.source_filepath),
-                'title': info.data['object name'],                      #5
-                'tags': info.data['keywords'],                          #25
-                'author': info.data['by-line'],                         #80
-                'city': info.data['city'],                              #90
-                'sublocation': info.data['sub-location'],               #92
-                'state': info.data['province/state'],                   #95
-                'country': info.data['country/primary location name'],  #101
-                'taxon': info.data['headline'],                         #105
-                'rights': info.data['copyright notice'],                #116
-                'caption': info.data['caption/abstract'],               #120
-                'size': info.data['special instructions'],              #40
-                'source': info.data['source'],                          #115
-                'references': info.data['credit'],                      #110
+                'title': info.data['object name'],                      # 5
+                'tags': info.data['keywords'],                          # 25
+                'author': info.data['by-line'],                         # 80
+                'city': info.data['city'],                              # 90
+                'sublocation': info.data['sub-location'],               # 92
+                'state': info.data['province/state'],                   # 95
+                'country': info.data['country/primary location name'],  # 101
+                'taxon': info.data['headline'],                         # 105
+                'rights': info.data['copyright notice'],                # 116
+                'caption': info.data['caption/abstract'],               # 120
+                'size': info.data['special instructions'],              # 40
+                'source': info.data['source'],                          # 115
+                'references': info.data['credit'],                      # 110
                 'timestamp': self.timestamp,
                 'notes': u'',
                 }
@@ -673,13 +673,13 @@ class Photo:
             # Copia foto para pasta site_media se .
             copy(photo_localpath, photo_sitepath)
         except IOError:
-            logger.warning('Erro na conversão de %s, verifique o ImageMagick.', 
+            logger.warning('Erro na conversão de %s, verifique o ImageMagick.',
                     self.source_filepath)
             # Evita que o loop seja interrompido.
             return None, None
         else:
             logger.info('%s convertida com sucesso!', self.source_filepath)
-            thumb_localpath = create_thumb(self.source_filepath, 
+            thumb_localpath = create_thumb(self.source_filepath,
                     self.local_thumb_dir)
 
             # Copia thumb da pasta local para site_media.
@@ -725,7 +725,10 @@ class Folder:
 
         # Tuplas para o endswith()
         photo_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG')
-        video_extensions = ('avi', 'AVI', 'mov', 'MOV', 'mp4', 'MP4', 'ogg', 'OGG', 'ogv', 'OGV', 'dv', 'DV', 'mpg', 'MPG', 'mpeg', 'MPEG', 'flv', 'FLV', 'm2ts', 'M2TS', 'wmv', 'WMV')
+        video_extensions = ('avi', 'AVI', 'mov', 'MOV', 'mp4', 'MP4',
+                            'ogg', 'OGG', 'ogv', 'OGV', 'dv', 'DV',
+                            'mpg', 'MPG', 'mpeg', 'MPEG', 'flv',
+                            'FLV', 'm2ts', 'M2TS', 'wmv', 'WMV')
         ignore_extensions = ('~')
 
         # Buscador de arquivos em ação
@@ -770,16 +773,16 @@ def prepare_meta(meta):
     #if not isinstance(meta['tags'], list):
 
     # Preparando autor(es) para o banco de dados
-    meta['author'] = [a.strip() for a in meta['author'].split(',')] 
+    meta['author'] = [a.strip() for a in meta['author'].split(',')]
     # Preparando especialista(s) para o banco de dados
-    meta['source'] = [a.strip() for a in meta['source'].split(',')] 
+    meta['source'] = [a.strip() for a in meta['source'].split(',')]
     # Preparando referências para o banco de dados
-    meta['references'] = [a.strip() for a in meta['references'].split(',')] 
+    meta['references'] = [a.strip() for a in meta['references'].split(',')]
     # Preparando taxon(s) para o banco de dados
     #XXX Lidar com fortuitos sp.?
     #XXX Lidar com fortuitos aff. e espécies com 3 nomes?
-    #meta['taxon'] = [a.strip() for a in meta['taxon'].split(',')] 
-    temp_taxa = [a.strip() for a in meta['taxon'].split(',')] 
+    #meta['taxon'] = [a.strip() for a in meta['taxon'].split(',')]
+    temp_taxa = [a.strip() for a in meta['taxon'].split(',')]
     clean_taxa = []
     for taxon in temp_taxa:
         tsplit = taxon.split()
@@ -791,6 +794,7 @@ def prepare_meta(meta):
     meta['taxon'] = clean_taxa
 
     return meta
+
 
 def build_autocomplete():
     '''Cria arquivo para popular o autocomplete do Véliger.'''
@@ -817,6 +821,7 @@ def build_autocomplete():
             }
     pickle.dump(autolists, autocomplete)
     autocomplete.close()
+
 
 def usage():
     '''Imprime manual de uso e argumentos disponíveis.'''
@@ -848,6 +853,7 @@ def usage():
     print '\tencontrar na pasta padrão e atualiza TSV de todas as imagens.'
     print
 
+
 def main(argv):
     ''' Função principal do programa.
 
@@ -861,8 +867,6 @@ def main(argv):
     # Valores padrão para argumentos
     force_update = False
     n_max = 20000
-    web_upload = False
-    single_img = False
     only_videos = False
     only_photos = False
 
