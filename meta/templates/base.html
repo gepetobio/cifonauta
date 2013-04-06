@@ -41,42 +41,20 @@
 
 </head>
 <body>
-  
-  <div class="">
-  </div>
-
   <div class="row">
     <div class="large-12 columns">
       
-      <nav class="top-bar">
+      <nav class="top-bar">{% include 'nav.html' %}</nav>
 
-        <!-- Mobile menu option -->
-        <ul class="title-area">
-          <li class="toggle-topbar menu-icon"><a href="#"><span>Menu</span></a></li>
-        </ul>
-        
-        <section class="top-bar-section">
-          <ul class="right" id="media">
-            <li><a class="active" href="/">{% trans 'home' %}</a></li>
-            <li><a class="has-dropdown" href="/about/">{% trans 'sobre' %}</a></li>
-            <li><a class="" href="/blog/">{% trans 'blog' %}</a></li>
-            <li class="divider"></li>
-            <li><a class="" href="/search/?type=photo">{% trans 'fotos' %}</a></li>
-            <li><a class="" href="/search/?type=video">{% trans 'vídeos' %}</a></li>
-            <li><a class="" href="{% url tours_url %}">{% trans 'tours' %}</a></li>
-            <li><a class="" href="{% url taxa_url %}">{% trans 'táxons' %}</a></li>
-            <li><a class="" href="{% url tags_url %}">{% trans 'marcadores' %}</a></li>
-            <li><a class="" href="{% url places_url %}">{% trans 'localidades' %}</a></li>
-            <li><a class="" href="{% url authors_url %}">{% trans 'autores' %}</a></li>
-            <li><a class="" href="{% url refs_url %}">{% trans 'referências' %}</a></li>
-          </ul>
-        </section>
+      <header class="main" id="mainheader">{% include 'header.html' %}</header>
 
-      </nav>
+      <section class="main" id="content">
+        {% block content %}{% endblock %}
+        {% block sidebar %}{% endblock %}
+      </section>
 
-      <h2>Welcome to Foundation</h2>
-      <p>This is version 4.1.1.</p>
-      <hr />
+      <footer class="main quiet">{% include 'footer.html' %}</footer>
+
     </div>
   </div>
 

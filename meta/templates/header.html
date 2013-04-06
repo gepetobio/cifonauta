@@ -1,6 +1,18 @@
 {% load cache i18n %}
 
 {% cache 2592000 logo LANGUAGE_CODE %}
+<div id="languages">
+    
+      <form class="custom" action="/i18n/setlang/" method="post">
+        {% csrf_token %}
+        <select class="small" name="language">
+          {% for lang in LANGUAGES %}
+          <option value="{{ lang.0 }}"{% if lang.0 == LANGUAGE_CODE %} selected="selected"{% endif %}>{{ lang.1 }}</option>
+          {% endfor %}
+        </select>
+      </form>
+</div>
+
 <a href="/">
   <hgroup class="main span-10">
   <!-- 
