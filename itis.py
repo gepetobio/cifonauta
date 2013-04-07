@@ -20,10 +20,6 @@ Algoritmo:
 from suds.client import Client
 import logging
 
-# Django environment import
-from django.core.management import setup_environ
-import settings
-setup_environ(settings)
 from meta.models import Taxon
 
 # Criando o logger.

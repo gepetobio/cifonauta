@@ -5,10 +5,10 @@ import os
 import sys
 import getopt
 
-# Django environment import
-from django.core.management import setup_environ
-import settings
-setup_environ(settings)
+# Django environment 
+from django.conf import settings
+settings.configure()
+
 from meta.models import *
 
 

@@ -30,10 +30,6 @@ import linking
 from itis import Itis
 from media_utils import *
 
-# Django environment import
-from django.core.management import setup_environ
-import settings
-setup_environ(settings)
 from meta.models import *
 
 __author__ = 'Bruno Vellutini'
