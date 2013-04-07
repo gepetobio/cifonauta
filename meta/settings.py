@@ -126,19 +126,24 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.static',
     'django.core.context_processors.request',
     'django.contrib.messages.context_processors.messages',
-    )
+)
 
 # Required for Debug Toolbar and sorl-thumbnail.
 INTERNAL_IPS = ('127.0.0.1',)
 
 DEBUG_TOOLBAR_CONFIG = {
     'INTERCEPT_REDIRECTS': False,
-    }
+}
 
 # Dajaxice requirement.
 DAJAXICE_MEDIA_PREFIX = 'dajaxice'
 
-ROOT_URLCONF = 'urls'
+# Cifonauta dirs.
+SOURCE_MEDIA = os.path.join(BASE_DIR, 'source_media')
+LOCAL_MEDIA = os.path.join(BASE_DIR, 'local_media')
+SITE_MEDIA = os.path.join(BASE_DIR, 'site_media')
+
+ROOT_URLCONF = 'meta.urls'
 
 TEMPLATE_DIRS = (
 )
@@ -226,7 +231,7 @@ LOGGING = {
 # Logicamente carrega configurações.
 if socket.gethostname() == 'cifonauta':
     # Importa dados para servidor.
-    from settings_server import *
+    from meta.settings_server import *
 else:
     # Importa dados para desenvolvimento.
-    from settings_local import *
+    from meta.settings_local import *
