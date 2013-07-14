@@ -40,8 +40,8 @@ from meta.models import *
 __author__ = 'Bruno Vellutini'
 __copyright__ = 'Copyright 2010-2013, CEBIMar-USP'
 __credits__ = 'Bruno C. Vellutini'
-__license__ = 'DEFINIR'
-__version__ = '0.9.0'
+__license__ = ''
+__version__ = '1.0'
 __maintainer__ = 'Bruno Vellutini'
 __email__ = 'organelas@gmail.com'
 __status__ = 'Development'
@@ -60,7 +60,7 @@ class Database:
 
         '''
         print
-        logger.info('Verificando se %s (%s) está no banco de dados...',
+        logger.info('Verifying if %s (%s) is in database...',
                 media.filename, media.source_filepath)
         photopath = 'photos/'
         videopath = 'videos/'
@@ -79,24 +79,24 @@ class Database:
                         try:
                             record = Video.objects.get(ogg_filepath=videopath + media.filename.split('.')[0] + '.ogv')
                         except:
-                            logger.debug('%s não está no banco de dados.',
+                            logger.debug('%s is not in database.',
                                     media.filename)
                             return False
-            logger.debug('Bingo! Registro de %s encontrado.', media.filename)
-            logger.info('Comparando timestamp do arquivo com o registro...')
+            logger.debug('Bingo! Entry for %s found.', media.filename)
+            logger.info('Comparing file timestamp with entry...')
             if record.timestamp != media.timestamp:
-                logger.debug('Arquivo mudou! Retorna 1')
+                logger.debug('File changed! Return 1')
                 return 1
             else:
-                logger.debug('Arquivo não mudou! Retorna 2')
+                logger.debug('File has not changed! Return 2')
                 return 2
         except Image.DoesNotExist:
-            logger.debug('Registro não encontrado (Image.DoesNotExist).')
+            logger.debug('Entry not found (Image.DoesNotExist).')
             return False
 
     def update_db(self, media, update=False):
         '''Create or update database entries.'''
-        logger.info('Atualizando o banco de dados...')
+        logger.info('Updating database...')
         # Instantiate metadata to avoid conflicts.
         media_meta = media.meta
         # Store object with taxonomic information.
@@ -186,14 +186,14 @@ class Database:
             if not taxon:
                 taxon = self.get_itis(value)
                 if not taxon:
-                    logger.debug('Nova tentativa em 5s...')
+                    logger.debug('New try in 5s...')
                     time.sleep(5)
                     taxon = self.get_itis(value)
             try:
                 # Finally, update model.
                 model = taxon.update_model(model)
             except:
-                logger.warning('Não rolou pegar hierarquia...')
+                logger.warning('Could not get hierarchy...')
         return model
 
     def update_sets(self, entry, field, meta):
@@ -235,8 +235,8 @@ class Movie:
         self.filename = os.path.basename(filepath)
         self.type = 'video'
 
-        # Checa para ver qual timestamp é mais atual, o arquivo de vídeo ou o
-        # arquivo acessório com os metadados.
+        # Check which timestamp is up-to-date, video file or its accessory file
+        # with metadata.
         try:
             file_timestamp = datetime.fromtimestamp(os.path.getmtime(filepath))
             meta_timestamp = datetime.fromtimestamp(
@@ -248,20 +248,20 @@ class Movie:
         except:
             self.timestamp = datetime.fromtimestamp(os.path.getmtime(filepath))
 
-        # Diretórios
+        # Directories.
         self.site_dir = u'site_media/videos'
         self.site_thumb_dir = u'site_media/videos/thumbs'
         self.local_dir = u'local_media/videos'
         self.local_thumb_dir = u'local_media/videos/thumbs'
 
-        # Verifica existência dos diretórios.
+        # Check if directories exist.
         dir_ready(self.site_dir, self.site_thumb_dir,
                 self.local_dir, self.local_thumb_dir)
 
     def create_meta(self, new=False):
-        '''Define as variáveis dos metadados do vídeo.'''
-        logger.info('Lendo os metadados de %s e criando variáveis.' % self.filename)
-        # Limpa metadados pra não misturar com o anterior.
+        '''Define variables for video metadata.'''
+        logger.info('Reading %s metadata and creating variables.' % self.filename)
+        # Clean metadata to keep things clean.
         self.meta = {}
         self.meta = {
                 'timestamp': self.timestamp,
@@ -288,41 +288,41 @@ class Movie:
                 'codec': u'',
                 }
 
-        # Verifica se arquivo acessório com meta dos vídeos existe.
+        # Verify if accessory file exists.
         try:
             linked_to = os.readlink(self.source_filepath)
             txt_path = linked_to.split('.')[0] + '.txt'
             meta_text = open(txt_path, 'rb')
-            logger.debug('Arquivo acessório %s existe!', txt_path)
+            logger.debug('Accessory file %s exists!', txt_path)
         except:
-            logger.debug('Arquivo acessório de %s não existe!',
+            logger.debug('Accessory file %s does not exist!',
                     self.source_filepath)
             meta_text = ''
 
         if meta_text:
             try:
                 meta_dic = pickle.load(meta_text)
-                # Atualiza meta com valores do arquivo acessório.
+                # Update meta with values from accessory file.
                 self.meta.update(meta_dic)
                 meta_text.close()
             except:
-                logger.warning('Pickle está corrompido: %s', meta_text)
+                logger.warning('Pickle is corrupted: %s', meta_text)
 
-        # Inicia processo de renomear arquivo.
+        # Rename files.
         if new:
-            # Adiciona o antigo caminho aos metadados.
+            # Add old filepath to metadata.
             self.meta['old_filepath'] = os.path.abspath(self.source_filepath)
             new_filename = rename_file(self.filename, self.meta['author'])
-            # Atualiza media object.
+            # Update media object.
             self.source_filepath = os.path.join(
                     os.path.dirname(self.source_filepath), new_filename)
             self.filename = new_filename
-            # Atualiza os metadados.
+            # Update metadata.
             self.meta['source_filepath'] = os.path.abspath(self.source_filepath)
-            # Renomeia o arquivo.
+            # Rename file.
             os.rename(self.meta['old_filepath'], self.meta['source_filepath'])
             if meta_text:
-                # Renomeia o arquivo acessório.
+                # Rename accessory file.
                 text_name = os.path.basename(self.meta['old_filepath'])
                 new_name = text_name.split('.')[0] + '.txt'
                 text_path = os.path.join(os.path.dirname(self.meta['old_filepath']), new_name)
@@ -331,20 +331,20 @@ class Movie:
         else:
             self.meta['source_filepath'] = os.path.abspath(self.source_filepath)
 
-        # Inclui duração, dimensões e codec do vídeo.
+        # Include duration, dimensions, and video codec.
         infos = get_info(self.meta['source_filepath'])
         self.meta.update(infos)
 
-        # Processa o vídeo.
+        # Process video.
         web_paths, thumb_filepath, large_thumb = self.process_video()
-        # Caso arquivo esteja corrompido.
+        # If file is corrupted.
         if not web_paths:
             return None
 
-        # Prepara alguns campos para banco de dados.
+        # Prepare some fields to database.
         self.meta = prepare_meta(self.meta)
 
-        # Insere paths sem o folder site_media
+        # Insert paths without site_media.
         for k, v in web_paths.iteritems():
             self.meta[k] = v.strip('site_media/')
         self.meta['thumb_filepath'] = thumb_filepath.strip('site_media/')
@@ -353,7 +353,7 @@ class Movie:
         return self.meta
 
     def build_call(self, filepath, ipass):
-        '''Constrói o subprocesso para converter o vídeo com o FFmpeg.'''
+        '''Build subprocess call to convert video with FFmpeg.'''
         # Base
         call = [
                 'ffmpeg', '-y', '-i', self.source_filepath,
@@ -362,10 +362,7 @@ class Movie:
                 '-b', '600k', '-g', '15', '-bf', '2',
                 '-threads', '0', '-pass', str(ipass),
                 ]
-        #TODO Achar um jeito mais confiável de saber se é HD...
-        # Comando cria objeto da marca d'água e redimensiona para 100px de
-        # largura, redimensiona o vídeo para o tamanho certo de acordo com seu
-        # tipo e insere a marca no canto esquerdo embaixo.
+        #TODO Find a better way of identifying HD videos.
         if self.source_filepath.endswith('m2ts'):
             call.extend([
                 '-vf', 'movie=marca.png:f=png, scale=100:-1 [wm];[in] '
@@ -378,8 +375,8 @@ class Movie:
                 'scale=512:384, [wm] overlay=5:H-h-5:1',
                 '-aspect', '4:3'
                 ])
-        # Audio codecs
-        # Exemplo para habilitar som no vídeo: filepath_comsom_.avi
+        # Audio codecs.
+        # To activate audio save filename as: filepath_comsom_.avi
         if 'comsom' in self.source_filepath.split('_') and ipass == 2:
             if filepath.endswith('mp4'):
                 call.extend(['-acodec', 'libfaac', '-ab', '128k',
@@ -390,7 +387,7 @@ class Movie:
         else:
             call.append('-an')
 
-        # Video codec
+        # Video codec.
         if filepath.endswith('webm'):
             call.extend(['-vcodec', 'libvpx'])
         elif filepath.endswith('mp4'):
@@ -398,17 +395,17 @@ class Movie:
         if filepath.endswith('ogv'):
             call.extend(['-vcodec', 'libtheora'])
         # Presets
-        # Precisa ser colocado depois do vcodec.
+        # Needs to be placed after vcodec.
         if ipass == 1:
             call.extend(['-vpre', 'veryslow_firstpass'])
         elif ipass == 2:
             call.extend(['-vpre', 'veryslow'])
-        # Finaliza com nome do arquivo
+        # Ends with file name.
         call.append(filepath)
         return call
 
     def process_video(self):
-        '''Redimensiona o vídeo, inclui marca d'água e comprime.'''
+        '''Resize video, include watermark, and compress.'''
         # Exemplo DV (4:3):
         #   Pass 1:
         #       ffmpeg -y -i video_in.avi -vf "movie=marca.png:f=png,
@@ -436,11 +433,11 @@ class Movie:
         #       -aspect 16:9 -pass 2 -vcodec libvpx -b 300k -g 15 -bf 2 -vpre
         #       veryslow -acodec libvorbis -ab 128k -ac 2 -ar 44100 -threads 2
         #       video_out.webm
-        #FIXME O que fazer quando vídeos forem menores que isso?
-        logger.info('Processando o vídeo %s', self.source_filepath)
+        #FIXME What to do if videos are smaller than that?
+        logger.info('Process video %s', self.source_filepath)
         web_paths = {}
         try:
-            #TODO Repensar essa função no módulo media_utils.
+            #TODO Re-think this function to module media_utils.
             # WebM
             webm_name = self.filename.split('.')[0] + '.webm'
             webm_filepath = os.path.join(self.local_dir, webm_name)
@@ -461,71 +458,71 @@ class Movie:
                 subprocess.call(webm_firstcall)
                 subprocess.call(webm_secondcall)
                 try:
-                    # Copia vídeo para pasta web
+                    # Copy video to web filder
                     webm_site_filepath = os.path.join(self.site_dir, webm_name)
                     copy(webm_filepath, webm_site_filepath)
                 except:
-                    logger.warning('Erro ao copiar %s para o site.',
+                    logger.warning('Error while copying %s to site.',
                             webm_filepath)
                 web_paths['webm_filepath'] = webm_site_filepath
             except:
-                logger.warning('Processamento do WebM (%s) não funcionou!',
+                logger.warning('WebM processing (%s) did not work!',
                         webm_filepath)
             try:
                 # MP4
                 subprocess.call(mp4_firstcall)
                 subprocess.call(mp4_secondcall)
                 try:
-                    # Copia vídeo para pasta web
+                    # Copy video to web folder.
                     mp4_site_filepath = os.path.join(self.site_dir, mp4_name)
                     copy(mp4_filepath, mp4_site_filepath)
                     try:
                         subprocess.call(['qt-faststart', mp4_site_filepath,
                             mp4_site_filepath])
                     except:
-                        logger.debug('qt-faststart não funcionou para %s',
+                        logger.debug('qt-faststart did not work to %s',
                                 mp4_filepath)
                 except:
-                    logger.warning('Erro ao copiar %s para o site.',
+                    logger.warning('Error while copying %s to website.',
                             mp4_filepath)
                 web_paths['mp4_filepath'] = mp4_site_filepath
             except:
-                logger.warning('Processamento do x264 (%s) não funcionou!',
+                logger.warning('x264 processing (%s) did not work!',
                         mp4_filepath)
             try:
                 # OGG
                 subprocess.call(ogg_firstcall)
                 subprocess.call(ogg_secondcall)
                 try:
-                    # Copia vídeo para pasta web
+                    # Copy video to web folder.
                     ogg_site_filepath = os.path.join(self.site_dir, ogg_name)
                     copy(ogg_filepath, ogg_site_filepath)
                 except:
-                    logger.warning('Erro ao copiar %s para o site.',
+                    logger.warning('Error while copying %s to website.',
                             ogg_filepath)
                 web_paths['ogg_filepath'] = ogg_site_filepath
             except:
-                logger.warning('Processamento do OGG (%s) não funcionou!',
+                logger.warning('OGV processing (%s) did not work!',
                         ogg_filepath)
         except IOError:
-            logger.warning('Erro na conversão de %s.')
+            logger.warning('Conversion error for %s.')
             return None, None, None
         else:
-            logger.info('%s convertido com sucesso!', self.source_filepath)
+            logger.info('%s converted successfully!', self.source_filepath)
             thumb_localpath, still_localpath = create_still(
                     self.source_filepath, self.local_thumb_dir)
 
-            # Copia thumb e still da pasta local para site_media.
+            # Copy thumb and still from local to site_media folder.
             try:
                 copy(thumb_localpath, self.site_thumb_dir)
-                logger.debug('Thumb copiado para %s', self.site_thumb_dir)
+                logger.debug('Thumb copied to %s', self.site_thumb_dir)
                 copy(still_localpath, self.site_thumb_dir)
-                logger.debug('Still copiado para %s', self.site_thumb_dir)
+                logger.debug('Still copied to %s', self.site_thumb_dir)
             except IOError:
-                logger.warning('Não conseguiu copiar thumb ou still em %s',
+                logger.warning('Could not copy thumb or still to %s',
                         self.site_thumb_dir)
 
-            # Define caminho para o thumb e still do site.
+            # Define path to thumb and still.
             thumb_sitepath = os.path.join(
                     self.site_thumb_dir,
                     os.path.basename(thumb_localpath)
@@ -539,46 +536,46 @@ class Movie:
 
 
 class Photo:
-    '''Define objeto para instâncias das fotos.'''
+    '''Define object to photo instances.'''
     def __init__(self, filepath):
         self.source_filepath = filepath
         self.filename = os.path.basename(filepath)
-        # Checar se arquivo existe antes.
+        # Check if file exists before.
         if check_file(self.source_filepath):
             self.timestamp = datetime.fromtimestamp(
                     os.path.getmtime(self.source_filepath))
             self.type = 'photo'
         else:
-            logger.critical('Arquivo não existe: %s', self.source_filepath)
-            logger.debug('Removendo link quebrado: %s', self.source_filepath)
+            logger.critical('File does not exist: %s', self.source_filepath)
+            logger.debug('Removing broken link: %s', self.source_filepath)
             os.remove(self.source_filepath)
             self.type = 'broken'
 
-        # Diretórios
+        # Directories.
         self.site_dir = u'site_media/photos'
         self.site_thumb_dir = u'site_media/photos/thumbs'
         self.local_dir = u'local_media/photos'
         self.local_thumb_dir = u'local_media/photos/thumbs'
 
-        # Verifica existência dos diretórios.
+        # Check folders.
         dir_ready(self.site_dir, self.site_thumb_dir,
                 self.local_dir, self.local_thumb_dir)
 
     def create_meta(self, charset='utf-8', new=False):
-        '''Define as variáveis extraídas dos metadados da imagem.
+        '''Define variables extracted from image metadata.
 
-        Usa a biblioteca do arquivo iptcinfo.py para padrão IPTC e pyexiv2 para EXIF.
+        Uses iptcinfo.py library to IPTC and pyexiv2 to EXIF.
         '''
-        logger.info('Lendo os metadados de %s e criando variáveis.',
+        logger.info('Reading metadata of %s and creating variables.',
                 self.filename)
 
-        # Criar objeto com metadados.
+        # Create object with metadata.
         info = IPTCInfo(self.source_filepath, True, charset)
-        # Checando se o arquivo tem dados IPTC.
+        # Cheking if file has IPTC metadata.
         if len(info.data) < 4:
             logger.warning('%s não tem dados IPTC!', self.filename)
 
-        # Limpa metadados pra não misturar com o anterior.
+        # Clean metadata.
         self.meta = {}
         self.meta = {
                 'source_filepath': os.path.abspath(self.source_filepath),
