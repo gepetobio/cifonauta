@@ -9,3 +9,12 @@ Project developed with [Python](http://python.org/) using [Django](http://django
 **Authors:** Alvaro E. Migotto & Bruno C. Vellutini
 
 **Support:** CNPq - National Council for Scientific and Technological Development, Call MCT / CNPq No. 42/2007 (process 551951/2008-7).
+
+
+== Vagrant support ==
+
+For this, you need to instal Virtual Box on [https://www.virtualbox.org/]
+
+On the root of the project, run `vagrant up` and it will install the Virtual Machine (VM). This may take some time... once it's completed, run `vagrant ssh` and you'll ssh the VM.
+
+Once on the VM, `cd /var/www` and you'll be in the root of the project. Then you should start running the server (this is the bit that needs to be complete).
